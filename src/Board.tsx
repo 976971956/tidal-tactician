@@ -8,6 +8,7 @@ type Props = {
   state: State; mode: 'play' | 'edit'; selected: Slot | null; preview?: Move
   fireMode: boolean; cellClick: (index: number) => void; partnerClick: (slot: Slot) => void
   transfer: (from: Slot, to: Slot) => void; batch: () => void; clearEnemies: () => void
+  clearPartners: (zone: Slot['zone']) => void
 }
 
 function largeAnchors(enemies: State['enemies']) {
@@ -26,7 +27,7 @@ function outsideTopColumns(enemies: State['enemies']) {
   return firstRow.map((anchor, col) => anchor || firstRow[col - 1])
 }
 
-export function Board({ state, mode, selected, preview, fireMode, cellClick, partnerClick, transfer, batch, clearEnemies }: Props) {
+export function Board({ state, mode, selected, preview, fireMode, cellClick, partnerClick, transfer, batch, clearEnemies, clearPartners }: Props) {
   const boardRef = useRef<HTMLDivElement>(null)
   const [arrow, setArrow] = useState('')
   const drag = useRef<{ from: Slot; x: number; y: number } | null>(null)
@@ -94,7 +95,7 @@ export function Board({ state, mode, selected, preview, fireMode, cellClick, par
     <div className="board-map">
       <div className="map-head">
         <div className="section-label"><span className="section-icon"><Icon name="grid" size={15}/></span><h2>僵尸区</h2><span className="dimension">6 × 5</span></div>
-        <div className="enemy-actions">
+        <div className="map-actions">
           <button className="text-button danger-text" onClick={clearEnemies} disabled={state.enemies.every(cell => cell.length === 0)}>清空僵尸区</button>
           <button className="text-button" onClick={batch}><Icon name="edit" size={15}/> 批量编辑</button>
         </div>
@@ -129,7 +130,10 @@ export function Board({ state, mode, selected, preview, fireMode, cellClick, par
       </div>
       <div className="map-head field-head">
         <div className="section-label"><span className="section-icon gold"><Icon name="shield" size={15}/></span><h2>伙伴区</h2><span className="dimension">2 × 5</span></div>
-        <span className="map-hint">同列攻击</span>
+        <div className="map-actions">
+          <span className="map-hint">同列攻击</span>
+          <button className="text-button danger-text" onClick={() => clearPartners('field')} disabled={!state.field.some(Boolean)}>清空伙伴区</button>
+        </div>
       </div>
       <div className="map-body field-body">
         <div className="indexed-grid">{state.field.map((_, index) => <div className="grid-fragment" key={index}>
@@ -140,7 +144,10 @@ export function Board({ state, mode, selected, preview, fireMode, cellClick, par
     <div className="bench panel">
       <div className="map-head">
         <div className="section-label"><span className="section-icon"><Icon name="layers" size={15}/></span><h2>休息区</h2><span className="dimension">{state.bench.filter(Boolean).length} / {state.bench.length}</span></div>
-        <span className="map-hint">剩余 {state.bench.filter(item => !item).length} 格</span>
+        <div className="map-actions">
+          <span className="map-hint">剩余 {state.bench.filter(item => !item).length} 格</span>
+          <button className="text-button danger-text" onClick={() => clearPartners('bench')} disabled={!state.bench.some(Boolean)}>清空休息区</button>
+        </div>
       </div>
       <div className="bench-grid">{state.bench.map((_, index) => partnerTile('bench', index))}</div>
       {state.bench.length === 0 && <p className="muted bench-note">休息区容量为 0</p>}

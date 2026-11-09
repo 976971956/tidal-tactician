@@ -1,4 +1,4 @@
-import { defaultRules, demoState, ENEMY_ROWS, COLS, FIELD_SIZE, largeAnchorFits, LEVELS, names } from './model'
+import { defaultRules, emptyState, ENEMY_ROWS, COLS, FIELD_SIZE, largeAnchorFits, LEVELS, names } from './model'
 import type { Enemy, Partner, Rules, State } from './model'
 import { historyOf } from './history'
 import type { History } from './history'
@@ -101,7 +101,7 @@ export function readHistory(): History<State> {
   } catch {
     // A corrupted autosave must never prevent the editor from starting.
   }
-  return historyOf(demoState())
+  return historyOf(emptyState())
 }
 
 export function exportState(state: State) {

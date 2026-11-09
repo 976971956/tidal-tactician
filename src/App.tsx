@@ -217,7 +217,8 @@ export default function App() {
             <Board state={state} mode={mode} selected={selected} fireMode={fireMode} preview={action && 'from' in action ? action : undefined}
               cellClick={index => fireMode ? perform({ kind: 'fire', col: colOf(index) }) : setModal({ type: 'enemy', index })}
               partnerClick={clickPartner} transfer={transfer} batch={() => setModal({ type: 'batch' })}
-              clearEnemies={() => update({ ...state, enemies: state.enemies.map(() => []), failed: false }, '已清空僵尸区，可撤销')}/>
+              clearEnemies={() => update({ ...state, enemies: state.enemies.map(() => []), failed: false }, '已清空僵尸区，可撤销')}
+              clearPartners={zone => update({ ...state, [zone]: state[zone].map(() => null) }, `已清空${zone === 'field' ? '伙伴区' : '休息区'}，可撤销`)}/>
           </div>
           <div className="board-tools">
             <button className="subtle-button" onClick={() => setModal({ type: 'enemy', index: Math.max(0, state.enemies.findIndex(cell => !cell.length)) })}><Icon name="plus" size={16}/> 添加僵尸</button>
@@ -230,7 +231,7 @@ export default function App() {
         <Analysis state={state} depth={depth} setDepth={value => { clearAnalysis(); setDepth(value) }} result={result} running={running} analyze={analyze}
           execute={() => { if (action) perform(action) }} preview={() => setModal({ type: 'preview' })}/>
       </div>
-      <footer><span><Icon name="wave" size={16}/> 走江踏浪 · 玩家推演工作台</span><span>首次开启载入示例 · 棋盘数据保存在本机</span></footer>
+      <footer><span><Icon name="wave" size={16}/> 走江踏浪 · 玩家推演工作台</span><span>棋盘数据保存在本机</span></footer>
     </main>
     {status && <div className="toast" role="status"><Icon name="info" size={17}/>{status}</div>}
     {modal?.type === 'enemy' && <EnemyEditor state={state} index={modal.index} close={close} save={(dest, enemies) => {

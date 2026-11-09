@@ -1,11 +1,19 @@
 import { expect, test } from '@playwright/test'
+import type { Page } from '@playwright/test'
 import { preview } from 'vite'
+
+async function loadDemo(page: Page) {
+  await page.getByRole('button', { name: '存档', exact: true }).click()
+  await page.getByRole('button', { name: '重置局面' }).click()
+  await page.getByRole('button', { name: '载入示例' }).click()
+}
 
 test('完整棋盘可见，触摸灰格可编辑和保存僵尸', async ({ page }, info) => {
   await page.goto('/')
   const enemy = page.getByRole('button', { name: /僵尸区 1 排 1 列/ })
-  await expect(page.locator('[data-enemy]')).toHaveCount(30)
-  await expect(page.locator('[data-slot^="field:"]')).toHaveCount(10)
+  await expect(page.getByRole('button', { name: /^僵尸区 .*空格$/ })).toHaveCount(30)
+  await expect(page.getByRole('button', { name: /^伙伴区 .*空格$/ })).toHaveCount(10)
+  await expect(page.getByRole('button', { name: /^休息区.*空格$/ })).toHaveCount(2)
   await expect(page.locator('[data-slot="field:9"]')).toBeInViewport({ ratio: 1 })
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(page.viewportSize()!.width)
   if (info.project.use.hasTouch) await enemy.tap()
@@ -74,6 +82,7 @@ test('执行唯一推荐并撤销、重做', async ({ page }) => {
   const errors: string[] = []
   page.on('pageerror', error => errors.push(error.message))
   await page.goto('/')
+  await loadDemo(page)
   await page.getByRole('button', { name: '分析下一步' }).click()
   await expect(page.getByRole('button', { name: '执行推荐操作' })).toBeVisible()
   await expect(page.locator('.move-arrow')).toBeVisible()
@@ -93,6 +102,7 @@ test('执行唯一推荐并撤销、重做', async ({ page }) => {
 
 test('先点伙伴后点目标，完成两回合并还原手动存档', async ({ page }, info) => {
   await page.goto('/')
+  await loadDemo(page)
   const press = async (slot: string) => {
     const locator = page.locator(`[data-slot="${slot}"]`)
     if (info.project.use.hasTouch) await locator.tap()
@@ -196,6 +206,7 @@ test('联网时打开最新版首页，静态服务停止后仍可推演', async
   const url = 'http://127.0.0.1:' + address.port + '/'
   try {
     await page.goto(url)
+    await loadDemo(page)
     await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller))
     updated = true
     await page.reload()
