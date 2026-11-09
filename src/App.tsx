@@ -216,7 +216,8 @@ export default function App() {
             {state.frozen > 0 && <div className="board-alert blue">僵尸冻结中，剩余 {state.frozen} 个正常回合。</div>}
             <Board state={state} mode={mode} selected={selected} fireMode={fireMode} preview={action && 'from' in action ? action : undefined}
               cellClick={index => fireMode ? perform({ kind: 'fire', col: colOf(index) }) : setModal({ type: 'enemy', index })}
-              partnerClick={clickPartner} transfer={transfer} batch={() => setModal({ type: 'batch' })}/>
+              partnerClick={clickPartner} transfer={transfer} batch={() => setModal({ type: 'batch' })}
+              clearEnemies={() => update({ ...state, enemies: state.enemies.map(() => []), failed: false }, '已清空僵尸区，可撤销')}/>
           </div>
           <div className="board-tools">
             <button className="subtle-button" onClick={() => setModal({ type: 'enemy', index: Math.max(0, state.enemies.findIndex(cell => !cell.length)) })}><Icon name="plus" size={16}/> 添加僵尸</button>

@@ -7,7 +7,7 @@ import { EnemyArt, Icon, Portrait } from './Art'
 type Props = {
   state: State; mode: 'play' | 'edit'; selected: Slot | null; preview?: Move
   fireMode: boolean; cellClick: (index: number) => void; partnerClick: (slot: Slot) => void
-  transfer: (from: Slot, to: Slot) => void; batch: () => void
+  transfer: (from: Slot, to: Slot) => void; batch: () => void; clearEnemies: () => void
 }
 
 function largeAnchors(enemies: State['enemies']) {
@@ -26,7 +26,7 @@ function outsideTopColumns(enemies: State['enemies']) {
   return firstRow.map((anchor, col) => anchor || firstRow[col - 1])
 }
 
-export function Board({ state, mode, selected, preview, fireMode, cellClick, partnerClick, transfer, batch }: Props) {
+export function Board({ state, mode, selected, preview, fireMode, cellClick, partnerClick, transfer, batch, clearEnemies }: Props) {
   const boardRef = useRef<HTMLDivElement>(null)
   const [arrow, setArrow] = useState('')
   const drag = useRef<{ from: Slot; x: number; y: number } | null>(null)
@@ -94,7 +94,10 @@ export function Board({ state, mode, selected, preview, fireMode, cellClick, par
     <div className="board-map">
       <div className="map-head">
         <div className="section-label"><span className="section-icon"><Icon name="grid" size={15}/></span><h2>僵尸区</h2><span className="dimension">6 × 5</span></div>
-        <button className="text-button" onClick={batch}><Icon name="edit" size={15}/> 批量编辑</button>
+        <div className="enemy-actions">
+          <button className="text-button danger-text" onClick={clearEnemies} disabled={state.enemies.every(cell => cell.length === 0)}>清空僵尸区</button>
+          <button className="text-button" onClick={batch}><Icon name="edit" size={15}/> 批量编辑</button>
+        </div>
       </div>
       <div className="map-body">
         <div className="coordinates"><span/>{[1, 2, 3, 4, 5].map(n => <span key={n}>{String(n).padStart(2, '0')}</span>)}</div>

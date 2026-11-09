@@ -47,6 +47,29 @@ test('第一排的大型邪祟向上占格，保留第二排原有僵尸', async
   await expect(secondRow).toHaveAccessibleName(/普通僵尸 9 血/)
 })
 
+test('清空僵尸区保留伙伴和资源，刷新后仍可撤销', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: '载入微信实局' }).click()
+  await page.getByRole('button', { name: '载入之前的 4535 分快照' }).click()
+  await page.getByRole('button', { name: '确认载入' }).click()
+  const clear = page.getByRole('button', { name: '清空僵尸区' })
+  const emptyCells = page.getByRole('button', { name: /^僵尸区 .*空格$/ })
+  await expect(page.getByRole('button', { name: /追远密卷 1 血/ })).toBeVisible()
+  await clear.click()
+  await expect(emptyCells).toHaveCount(30)
+  await expect(clear).toBeDisabled()
+  await expect(page.getByRole('button', { name: /伙伴区 1 排 2 列.*李追远 攻击力 16/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /休息区第 1 格.*秦璃 攻击力 1/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /饮料\s*83/ })).toBeVisible()
+  await expect(page.getByText('第 00 回合')).toBeVisible()
+  await page.reload()
+  await expect(emptyCells).toHaveCount(30)
+  await page.getByRole('button', { name: '撤销' }).click()
+  await expect(page.getByRole('button', { name: /追远密卷 1 血/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /大型邪祟 71 血/ })).toBeVisible()
+  await expect(clear).toBeEnabled()
+})
+
 test('执行唯一推荐并撤销、重做', async ({ page }) => {
   const errors: string[] = []
   page.on('pageerror', error => errors.push(error.message))
