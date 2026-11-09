@@ -64,7 +64,8 @@ export function risk(state: State) {
 function rank(state: State, loot: number, motion: number) {
   const { count, exposed, pressure, output } = risk(state)
   return [
-    Number(count === 0), -exposed, -pressure, output.filter(Boolean).length,
+    // For clear boards, save turns before comparing score, which increases with every move.
+    Number(count === 0), count === 0 ? -state.turn : 0, -exposed, -pressure, output.filter(Boolean).length,
     output.reduce((sum, amount) => sum + amount, 0), loot, state.score, -motion,
   ]
 }

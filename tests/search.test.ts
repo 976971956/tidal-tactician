@@ -8,6 +8,20 @@ function add(state: State, index: number, hp: number) {
   state.enemies[index] = [{ kind: 'zombie', hp, initialHp: hp, variant: 'normal' }]
 }
 
+test('同样无需符咒时，优先上阵到能立即清场的列', () => {
+  const state = emptyState()
+  state.bench[0] = { role: 'li', level: 1 }
+  add(state, 4, 1)
+
+  const result = recommend(state)
+  expect(result).toMatchObject({
+    action: { kind: 'move', from: { zone: 'bench', index: 0 }, to: { zone: 'field', index: 4 } },
+    status: 'clear', survived: 1, rescue: false,
+  })
+  expect(result.path).toHaveLength(1)
+  expect(simulate(state, result.action!)).toMatchObject({ killed: 1, state: { drinks: state.drinks - 1 } })
+})
+
 test('推荐安全操作，避开会让末排僵尸逃逸的走法', () => {
   const state = demoState()
   const result = recommend(state, 4)
