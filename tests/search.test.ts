@@ -98,13 +98,36 @@ test('能安全清场时，先救即将越过底线的血瓷瓶', () => {
   expect(cursor.enemies.flat().every(enemy => enemy.kind !== 'zombie')).toBe(true)
 
   state.rules.propMovement = 'stationary'
-  expect(recommend(state)).toMatchObject({ survived: 2, action: { kind: 'merge' } })
+  expect(simulate(state, result.action!)?.expiringLoot).toBe(0)
 
   state.rules.propMovement = 'with-enemies'
   add(state, 27, 2)
   const defense = recommend(state)
-  expect(defense.action).toMatchObject({ kind: 'merge', to: { zone: 'field', index: 2 } })
-  expect(simulate(state, defense.action!)?.state.failed).toBe(false)
+  const defended = simulate(state, defense.action!)!
+  expect(defended.state.failed).toBe(false)
+  expect(defended.hits).toContainEqual(expect.objectContaining({ index: 27, killed: true }))
+})
+
+test('道具未到末排时，也会先领取伙伴再安全清场', () => {
+  const state = emptyState()
+  state.bench[0] = { role: 'li', level: 1 }
+  add(state, 0, 1)
+  state.enemies[1] = [{ kind: 'book', hp: 1 }]
+  state.enemies[2] = [{ kind: 'bottle', hp: 1 }]
+
+  const result = recommend(state)
+  expect(result).toMatchObject({ status: 'clear', rescue: false })
+  expect(simulate(state, result.action!)).toMatchObject({ loot: 1, expiringLoot: 0 })
+  let cursor = state
+  let recruited = 0
+  for (const action of result.path) {
+    const step = simulate(cursor, action)!
+    expect(step.state.failed).toBe(false)
+    recruited += step.loot
+    cursor = step.state
+  }
+  expect(recruited).toBe(2)
+  expect(cursor.enemies.flat()).toEqual([])
 })
 
 test('安全的合成目标有多个时，优先打出更多实际伤害的合成', () => {
@@ -205,9 +228,10 @@ test('没有伙伴操作时说明推演停滞', () => {
   expect(recommend(state, 3)).toMatchObject({ status: 'stalled', action: null })
 })
 
-test('清场后能立即领取道具时，可推荐正常操作领取伙伴', () => {
+test('清场后休息区满了，仍可上阵腾位来领取道具伙伴', () => {
   const state = emptyState()
   state.bench[0] = { role: 'li', level: 1 }
+  state.bench[1] = { role: 'qin', level: 1 }
   state.enemies[2] = [{ kind: 'book', hp: 1 }]
   const result = recommend(state)
   expect(result.action?.kind).toBe('move')
