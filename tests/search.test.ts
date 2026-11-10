@@ -10,6 +10,7 @@ function add(state: State, index: number, hp: number) {
 
 test('同样无需符咒时，优先上阵到能立即清场的列', () => {
   const state = emptyState()
+  state.fire = state.ice = 0
   state.bench[0] = { role: 'li', level: 1 }
   add(state, 4, 1)
 
@@ -20,6 +21,26 @@ test('同样无需符咒时，优先上阵到能立即清场的列', () => {
   })
   expect(result.path).toHaveLength(1)
   expect(simulate(state, result.action!)).toMatchObject({ killed: 1, state: { drinks: state.drinks - 1 } })
+})
+
+test('没有符咒时优先赚取击杀积分，仍排除会失守的走法', () => {
+  const state = emptyState()
+  state.drinks = 1
+  state.fire = state.ice = 0
+  state.bench[0] = { role: 'qin', level: 2 }
+  state.enemies[0] = [{ kind: 'zombie', hp: 2, initialHp: 20, variant: 'normal' }]
+  add(state, 1, 6)
+  add(state, 6, 6)
+  add(state, 11, 6)
+
+  const result = recommend(state)
+  expect(result.action).toMatchObject({ to: { zone: 'field', index: 0 } })
+  expect(simulate(state, result.action!)).toMatchObject({ killed: 1, state: { score: 30, failed: false } })
+
+  add(state, 26, 2)
+  const defense = recommend(state)
+  expect(defense.action).toMatchObject({ to: { zone: 'field', index: 1 } })
+  expect(simulate(state, defense.action!)).toMatchObject({ killed: 1, state: { score: 12, failed: false } })
 })
 
 test('合成和上阵都能立即清场时，优先合成', () => {

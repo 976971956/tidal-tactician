@@ -1,4 +1,4 @@
-import { simulate } from './combat'
+import { NORMAL_TURN_SCORE, simulate } from './combat'
 import { colOf, enemyColumns, moveBetween, rowOf, slotKey } from './model'
 import type { Action, Move, Partner, Slot, State } from './model'
 
@@ -68,11 +68,11 @@ function lineupPriority(action?: Action) {
   return Number(action?.kind === 'move' && action.from.zone === 'bench' && action.to.zone === 'field')
 }
 
-function rank(state: State, loot: number, motion: number, firstAction?: Action) {
+function rank(state: State, loot: number, motion: number, killScore: number, firstAction?: Action) {
   const { count, exposed, remainingHp, pressure, output } = risk(state)
   return [
     // For clear boards, save turns before comparing score, which increases with every move.
-    Number(count === 0), count === 0 ? -state.turn : 0, -exposed, -remainingHp, -pressure, lineupPriority(firstAction),
+    Number(count === 0), count === 0 ? -state.turn : 0, -exposed, killScore, -remainingHp, -pressure, lineupPriority(firstAction),
     output.filter(Boolean).length,
     output.reduce((sum, amount) => sum + amount, 0), loot, state.score, -motion,
   ]
@@ -104,7 +104,8 @@ export function recommend(initial: State, depth = 4, width = 44): Recommendation
     fire: Math.min(initial.fire, initial.rules.maxFireUses ?? initial.fire),
     ice: Math.min(initial.ice, initial.rules.maxIceUses ?? initial.ice),
   }
-  const root: Node = { state: available, path: [], spells: 0, value: rank(available, 0, 0), motion: 0, loot: 0 }
+  const noSpells = available.fire === 0 && available.ice === 0
+  const root: Node = { state: available, path: [], spells: 0, value: rank(available, 0, 0, 0), motion: 0, loot: 0 }
   let searched = 0
   const requestedDepth = Math.max(3, Math.min(7, depth))
   function run(rescue: boolean) {
@@ -143,7 +144,9 @@ export function recommend(initial: State, depth = 4, width = 44): Recommendation
           action.kind === 'merge' ? 2 : 1)
       const loot = node.loot + result.loot - result.lost
       const path = [...node.path, action]
-      return { state: result.state, path, spells: node.spells + Number(spell), value: rank(result.state, loot, motion, path[0]), motion, loot }
+      const turns = result.state.turn - initial.turn
+      const killScore = noSpells ? result.state.score - initial.score - turns * NORMAL_TURN_SCORE : 0
+      return { state: result.state, path, spells: node.spells + Number(spell), value: rank(result.state, loot, motion, killScore, path[0]), motion, loot }
     }
     function record(node: Node) {
       const turns = node.state.turn - initial.turn
