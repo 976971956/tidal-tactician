@@ -23,7 +23,7 @@ test('同样无需符咒时，优先上阵到能立即清场的列', () => {
   expect(simulate(state, result.action!)).toMatchObject({ killed: 1, state: { drinks: state.drinks - 1 } })
 })
 
-test('没有符咒时优先赚取击杀积分，仍排除会失守的走法', () => {
+test('没有符咒但仍能守住时，沿用常规推演排序', () => {
   const state = emptyState()
   state.drinks = 1
   state.fire = state.ice = 0
@@ -34,12 +34,30 @@ test('没有符咒时优先赚取击杀积分，仍排除会失守的走法', ()
   add(state, 11, 6)
 
   const result = recommend(state)
-  expect(result.action).toMatchObject({ to: { zone: 'field', index: 0 } })
-  expect(simulate(state, result.action!)).toMatchObject({ killed: 1, state: { score: 30, failed: false } })
+  expect(result).toMatchObject({ status: 'limited', action: { to: { zone: 'field', index: 1 } } })
+  expect(simulate(state, result.action!)).toMatchObject({ killed: 0, state: { score: 10, failed: false } })
+})
 
+test('无符且所有走法都会失守时，推荐得分最高的最后一步', () => {
+  const state = emptyState()
+  state.fire = state.ice = 0
+  state.drinks = 1
+  state.bench[0] = { role: 'qin', level: 2 }
+  state.enemies[0] = [{ kind: 'zombie', hp: 2, initialHp: 20, variant: 'normal' }]
   add(state, 26, 2)
+  add(state, 27, 30)
+
+  const last = recommend(state)
+  expect(last).toMatchObject({
+    status: 'final-score', survived: 0, rescue: false,
+    action: { kind: 'move', to: { zone: 'field', index: 0 } },
+  })
+  expect(last.path).toEqual([last.action])
+  expect(simulate(state, last.action!)).toMatchObject({ killed: 1, state: { score: 30, failed: true } })
+
+  state.enemies[27] = []
   const defense = recommend(state)
-  expect(defense.action).toMatchObject({ to: { zone: 'field', index: 1 } })
+  expect(defense).toMatchObject({ status: 'limited', survived: 1, action: { to: { zone: 'field', index: 1 } } })
   expect(simulate(state, defense.action!)).toMatchObject({ killed: 1, state: { score: 12, failed: false } })
 })
 
@@ -123,7 +141,7 @@ test('冰冻符在不同回合的使用次数累计，设为零时跳过', () =>
   add(state, 25, 3)
 
   state.rules.maxIceUses = 0
-  expect(recommend(state)).toMatchObject({ action: null, status: 'impossible' })
+  expect(recommend(state)).toMatchObject({ action: { kind: 'move' }, status: 'final-score', survived: 0 })
   state.rules.maxIceUses = 1
   expect(recommend(state)).toMatchObject({ action: { kind: 'ice' }, status: 'limited', survived: 1 })
   state.rules.maxIceUses = 2

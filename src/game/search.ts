@@ -1,11 +1,11 @@
-import { NORMAL_TURN_SCORE, simulate } from './combat'
+import { simulate } from './combat'
 import { colOf, enemyColumns, moveBetween, rowOf, slotKey } from './model'
 import type { Action, Move, Partner, Slot, State } from './model'
 
 type Node = { state: State; path: Action[]; spells: number; value: number[]; motion: number; loot: number }
 export type Recommendation = {
   action: Action | null; path: Action[]; depth: number; survived: number; searched: number
-  status: 'clear' | 'safe' | 'limited' | 'stalled' | 'impossible'
+  status: 'clear' | 'safe' | 'limited' | 'stalled' | 'impossible' | 'final-score'
   pruned: boolean; normalPruned: boolean; rescue: boolean
 }
 
@@ -68,11 +68,11 @@ function lineupPriority(action?: Action) {
   return Number(action?.kind === 'move' && action.from.zone === 'bench' && action.to.zone === 'field')
 }
 
-function rank(state: State, loot: number, motion: number, killScore: number, firstAction?: Action) {
+function rank(state: State, loot: number, motion: number, firstAction?: Action) {
   const { count, exposed, remainingHp, pressure, output } = risk(state)
   return [
     // For clear boards, save turns before comparing score, which increases with every move.
-    Number(count === 0), count === 0 ? -state.turn : 0, -exposed, killScore, -remainingHp, -pressure, lineupPriority(firstAction),
+    Number(count === 0), count === 0 ? -state.turn : 0, -exposed, -remainingHp, -pressure, lineupPriority(firstAction),
     output.filter(Boolean).length,
     output.reduce((sum, amount) => sum + amount, 0), loot, state.score, -motion,
   ]
@@ -105,7 +105,7 @@ export function recommend(initial: State, depth = 4, width = 44): Recommendation
     ice: Math.min(initial.ice, initial.rules.maxIceUses ?? initial.ice),
   }
   const noSpells = available.fire === 0 && available.ice === 0
-  const root: Node = { state: available, path: [], spells: 0, value: rank(available, 0, 0, 0), motion: 0, loot: 0 }
+  const root: Node = { state: available, path: [], spells: 0, value: rank(available, 0, 0), motion: 0, loot: 0 }
   let searched = 0
   const requestedDepth = Math.max(3, Math.min(7, depth))
   function run(rescue: boolean) {
@@ -114,6 +114,7 @@ export function recommend(initial: State, depth = 4, width = 44): Recommendation
     let frontier = [root]
     let longest = root
     let goal: Node | undefined
+    let scoringMove: { action: Action; score: number } | undefined
     let stalled = false
     function trim(nodes: Node[]) {
       const unique = new Map<string, Node>()
@@ -137,16 +138,20 @@ export function recommend(initial: State, depth = 4, width = 44): Recommendation
     function step(node: Node, action: Action) {
       searched++
       const result = simulate(node.state, action, false)
-      if (!result || result.state.failed) return null
+      if (!result) return null
+      if (result.state.failed) {
+        if (noSpells && node === root && (!scoringMove || result.state.score > scoringMove.score)) {
+          scoringMove = { action, score: result.state.score }
+        }
+        return null
+      }
       const spell = action.kind === 'fire' || action.kind === 'ice'
       const motion = node.motion + (spell ? 0 :
         action.from.zone === 'field' && action.to.zone === 'field' && colOf(action.from.index) === colOf(action.to.index) ? 3 :
           action.kind === 'merge' ? 2 : 1)
       const loot = node.loot + result.loot - result.lost
       const path = [...node.path, action]
-      const turns = result.state.turn - initial.turn
-      const killScore = noSpells ? result.state.score - initial.score - turns * NORMAL_TURN_SCORE : 0
-      return { state: result.state, path, spells: node.spells + Number(spell), value: rank(result.state, loot, motion, killScore, path[0]), motion, loot }
+      return { state: result.state, path, spells: node.spells + Number(spell), value: rank(result.state, loot, motion, path[0]), motion, loot }
     }
     function record(node: Node) {
       const turns = node.state.turn - initial.turn
@@ -186,7 +191,7 @@ export function recommend(initial: State, depth = 4, width = 44): Recommendation
       }
       frontier = trim(upcoming)
     }
-    return { goal, longest, pruned, stalled }
+    return { goal, longest, pruned, stalled, scoringMove }
   }
 
   if (initial.failed) return { action: null, path: [], depth: requestedDepth, survived: 0, searched, status: 'impossible', pruned: false, normalPruned: false, rescue: false }
@@ -212,6 +217,11 @@ export function recommend(initial: State, depth = 4, width = 44): Recommendation
   const rescue = !normal.goal && !normal.stalled && Boolean(available.fire || available.ice) ? run(true) : undefined
   const partialRescue = rescue && rescue.longest.state.turn > normal.longest.state.turn ? rescue.longest : undefined
   const best = normal.goal ?? rescue?.goal ?? partialRescue ?? normal.longest
+  if (normal.scoringMove && !best.path.length) {
+    const { action } = normal.scoringMove
+    return { action, path: [action], depth: requestedDepth, survived: 0, searched,
+      status: 'final-score', pruned: normal.pruned, normalPruned: normal.pruned, rescue: false }
+  }
   const status = best.value[0] ? 'clear' : best.state.turn - initial.turn >= requestedDepth ? 'safe' :
     best.path.length ? 'limited' : normal.stalled ? 'stalled' : 'impossible'
   return {

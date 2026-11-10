@@ -14,10 +14,12 @@ export function Analysis({ state, depth, setDepth, result, running, analyze, exe
   const outcome = result?.action ? simulate(state, result.action) : null
   const currentRisk = risk(state)
   const nextRisk = outcome ? risk(outcome.state) : null
+  const finalScore = result?.status === 'final-score'
   const status = result && ({
     clear: '已知僵尸可清场', safe: '搜索深度内有安全解', limited: '仅找到短期安全操作',
     impossible: state.failed ? '当前局面已失败' : result.pruned ? '搜索范围内未找到安全操作' : '当前无安全操作',
     stalled: '缺少可推进回合的操作',
+    'final-score': '无安全操作 · 最后抢分',
   })[result.status]
   return <aside className="sidebar">
     <section className="panel analysis">
@@ -33,13 +35,15 @@ export function Analysis({ state, depth, setDepth, result, running, analyze, exe
           <span className={`status-pill ${['clear', 'safe'].includes(result.status) ? 'success' : 'attention'}`}>{status}</span>
           {result.action && outcome ? <>
             <h3>{describe(state, result.action)}</h3>
-            <div className="result-line"><Icon name="shield" size={16}/> {result.survived} 个正常回合经模拟存活 · {result.rescue ? '路线需要符咒' : '路线无需符咒'}</div>
+            {finalScore
+              ? <p className="hint danger-text">执行这一步后防线会失守。这是本回合得分最高的走法。</p>
+              : <div className="result-line"><Icon name="shield" size={16}/> {result.survived} 个正常回合经模拟存活 · {result.rescue ? '路线需要符咒' : '路线无需符咒'}</div>}
             <div className="result-line"><Icon name="skull" size={16}/> 本步击杀 {outcome.killed} 只 · 总有效伤害 {outcome.hits.reduce((sum, hit) => sum + hit.damage, 0)} · 积分 +{outcome.state.score - state.score}</div>
-            <div className="result-line"><Icon name="target" size={16}/> 下一回合末排威胁 {nextRisk!.bottom} 只
-              {outcome.state.frozen > 0 && ` · 已冻结 ${outcome.state.frozen} 回合`}</div>
+            {!finalScore && <div className="result-line"><Icon name="target" size={16}/> 下一回合末排威胁 {nextRisk!.bottom} 只
+              {outcome.state.frozen > 0 && ` · 已冻结 ${outcome.state.frozen} 回合`}</div>}
             <p className="muted small">可信度：{result.pruned ? '有限搜索内已复演' : '搜索范围内已复演'} · 模拟 {result.searched.toLocaleString()} 种走法</p>
             {result.rescue && result.normalPruned && <p className="hint gold-hint">常规搜索经过剪枝，当前范围内未找到满足目标的无符路线。</p>}
-            <button className="primary full" onClick={execute}><Icon name="play" size={17}/> 执行推荐操作</button>
+            <button className="primary full" onClick={execute}><Icon name="play" size={17}/> {finalScore ? '执行抢分操作' : '执行推荐操作'}</button>
             <button className="subtle-button full preview-button" onClick={preview}>只预览，不执行<Icon name="chevron" size={15}/></button>
           </> : <p className="muted">{result.status === 'clear' ? '当前僵尸区已清空，可以同步真实游戏的新局面。' : result.status === 'stalled' ? '检查饮料和伙伴布局，或编辑棋盘以继续推演。' : '可以同步局面、校准规则，或撤销到先前回合。'}</p>}
         </div> : <div className="analysis-empty" aria-live="polite">
@@ -72,6 +76,7 @@ export function Preview({ state, result, close }: { state: State; result: Recomm
   let cursor = state
   return <Dialog title="推荐操作预览" eyebrow="TACTICAL REPLAY" close={close} wide>
     <p className="hint">{describe(state, action)} · 搜索深度 {result.depth} 回合</p>
+    {result.status === 'final-score' && <p className="hint danger-text">这一步结算得分后，防线会失守。</p>}
     <div className="preview-boards"><MiniBoard state={state} caption="操作前"/><MiniBoard state={outcome.state} caption="操作后"/></div>
     <p className="muted small">饮料 {state.drinks} → {outcome.state.drinks}　积分 {state.score} → {outcome.state.score}　休息区剩余 {outcome.state.bench.filter(item => !item).length} 格</p>
     <h3>伤害与击杀</h3>

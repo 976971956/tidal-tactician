@@ -1,8 +1,6 @@
 import { applyPlacement, colOf, COLS, enemyColumns, enemyName, moveBetween, names, occupiedCells, rowOf } from './model'
 import type { Action, Enemy, Prop, State } from './model'
 
-export const NORMAL_TURN_SCORE = 10
-
 export type Hit = {
   index: number; name: string; damage: number; before: number; after: number; killed: boolean
 }
@@ -78,7 +76,7 @@ export function simulate(state: State, action: Action, report = true): Outcome |
   }
 
   next.drinks--
-  next.score += NORMAL_TURN_SCORE
+  next.score += 10
   next.turn++
   const { rules } = next
   const actors = next.field.flatMap((partner, index) => partner ? [{ partner, index }] : [])
