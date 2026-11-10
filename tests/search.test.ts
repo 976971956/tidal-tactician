@@ -3,6 +3,7 @@ import { simulate } from '../src/game/combat'
 import { demoState, emptyState, wechatSample } from '../src/game/model'
 import type { State } from '../src/game/model'
 import { recommend } from '../src/game/search'
+import { parseBoard } from '../src/game/storage'
 
 function add(state: State, index: number, hp: number) {
   state.enemies[index] = [{ kind: 'zombie', hp, initialHp: hp, variant: 'normal' }]
@@ -73,6 +74,37 @@ test('合成和上阵都能立即清场时，优先合成', () => {
     status: 'clear', survived: 1, rescue: false,
   })
   expect(simulate(state, result.action!)?.state.field[0]?.level).toBe(4)
+})
+
+test('能安全清场时，先救即将越过底线的血瓷瓶', () => {
+  const state = emptyState()
+  state.enemies = parseBoard([
+    '. 4 . R .', '. . 4 . .', '1 . . . .', '. . . . .', '. . . . .', '. R . . .',
+  ].join('\n'), state.rules)
+  state.field[0] = { role: 'qin', level: 2 }
+  state.field[2] = state.field[4] = { role: 'li', level: 1 }
+  state.field[6] = { role: 'qin', level: 1 }
+
+  const result = recommend(state)
+  expect(result).toMatchObject({ status: 'clear', survived: 3, rescue: false })
+  const first = simulate(state, result.action!)!
+  expect(first).toMatchObject({ expiringLoot: 1, state: { bench: [{ role: 'qin', level: 1 }, null] } })
+  expect(first.hits).toContainEqual(expect.objectContaining({ index: 26, killed: true }))
+  let cursor = state
+  for (const action of result.path) {
+    cursor = simulate(cursor, action)!.state
+    expect(cursor.failed).toBe(false)
+  }
+  expect(cursor.enemies.flat().every(enemy => enemy.kind !== 'zombie')).toBe(true)
+
+  state.rules.propMovement = 'stationary'
+  expect(recommend(state)).toMatchObject({ survived: 2, action: { kind: 'merge' } })
+
+  state.rules.propMovement = 'with-enemies'
+  add(state, 27, 2)
+  const defense = recommend(state)
+  expect(defense.action).toMatchObject({ kind: 'merge', to: { zone: 'field', index: 2 } })
+  expect(simulate(state, defense.action!)?.state.failed).toBe(false)
 })
 
 test('安全的合成目标有多个时，优先打出更多实际伤害的合成', () => {

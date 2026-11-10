@@ -5,7 +5,7 @@ export type Hit = {
   index: number; name: string; damage: number; before: number; after: number; killed: boolean
 }
 export type Outcome = {
-  state: State; hits: Hit[]; notes: string[]; killed: number; loot: number; lost: number
+  state: State; hits: Hit[]; notes: string[]; killed: number; loot: number; lost: number; expiringLoot: number
 }
 
 export function simulate(state: State, action: Action, report = true): Outcome | null {
@@ -22,8 +22,12 @@ export function simulate(state: State, action: Action, report = true): Outcome |
   const next = action.kind === 'fire' || action.kind === 'ice'
     ? { ...state, bench: [...state.bench] } : applyPlacement(state, action)
   next.enemies = state.enemies.map(cell => cell.map(enemy => ({ ...enemy })))
-  const outcome: Outcome = { state: next, hits: [], notes: [], killed: 0, loot: 0, lost: 0 }
-  const props: Prop[] = []
+  const outcome: Outcome = { state: next, hits: [], notes: [], killed: 0, loot: 0, lost: 0, expiringLoot: 0 }
+  const { rules } = next
+  const frozen = next.frozen > 0
+  const propsAdvance = rules.propMovement === 'every-turn' || (!frozen && rules.propMovement === 'with-enemies')
+  const breached = (index: number) => rowOf(index) >= rules.boundary
+  const props: { kind: Prop['kind']; index: number }[] = []
   const note = (value: string) => { if (report) outcome.notes.push(value) }
 
   function hit(index: number, enemy: Enemy, damage: number) {
@@ -37,7 +41,7 @@ export function simulate(state: State, action: Action, report = true): Outcome |
       next.score += enemy.initialHp
       outcome.killed++
     } else {
-      props.push(enemy)
+      props.push({ kind: enemy.kind, index })
       if (next.rules.propTiming === 'immediate') collectLoot()
     }
   }
@@ -52,6 +56,7 @@ export function simulate(state: State, action: Action, report = true): Outcome |
       } else {
         next.bench[slot] = { role, level: 1 }
         outcome.loot++
+        if (propsAdvance && breached(prop.index + COLS)) outcome.expiringLoot++
         note(`${names[prop.kind]}破碎，1 级${names[role]}进入休息区`)
       }
     }
@@ -78,7 +83,6 @@ export function simulate(state: State, action: Action, report = true): Outcome |
   next.drinks--
   next.score += 10
   next.turn++
-  const { rules } = next
   const actors = next.field.flatMap((partner, index) => partner ? [{ partner, index }] : [])
   if (rules.attackOrder === 'back') actors.sort((a, b) => rowOf(b.index) - rowOf(a.index) || a.index - b.index)
   if (rules.attackOrder === 'li' || rules.attackOrder === 'qin') {
@@ -117,20 +121,17 @@ export function simulate(state: State, action: Action, report = true): Outcome |
   collectLoot()
   next.enemies = next.enemies.map(cell => cell.filter(enemy => enemy.hp > 0))
 
-  const breached = (index: number) => rowOf(index) >= rules.boundary
   if (next.enemies.some((cell, index) => breached(index) && cell.some(enemy => enemy.kind === 'zombie'))) {
     next.failed = true
     note('攻击结算后，仍有僵尸处于设定底线之外')
     return outcome
   }
 
-  const frozen = next.frozen > 0
   if (frozen) {
     next.frozen--
     note('冰冻生效，僵尸本回合停步')
   }
 
-  const propsAdvance = rules.propMovement === 'every-turn' || (!frozen && rules.propMovement === 'with-enemies')
   const movers: { index: number; enemy: Enemy }[] = []
   for (let index = next.enemies.length - 1; index >= 0; index--) {
     const cell = next.enemies[index]
