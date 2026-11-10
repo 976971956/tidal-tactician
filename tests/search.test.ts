@@ -22,6 +22,19 @@ test('同样无需符咒时，优先上阵到能立即清场的列', () => {
   expect(simulate(state, result.action!)).toMatchObject({ killed: 1, state: { drinks: state.drinks - 1 } })
 })
 
+test('同样能立即清场时，优先合成而不是移动到其他空列', () => {
+  const state = emptyState()
+  state.field[0] = state.field[1] = { role: 'qin', level: 2 }
+  add(state, 25, 1)
+
+  const result = recommend(state)
+  expect(result).toMatchObject({
+    action: { kind: 'merge', to: { zone: 'field', index: 0 } },
+    status: 'clear', survived: 1, rescue: false,
+  })
+  expect(simulate(state, result.action!)?.state.field[0]?.level).toBe(4)
+})
+
 test('推荐安全操作，避开会让末排僵尸逃逸的走法', () => {
   const state = demoState()
   const result = recommend(state, 4)
@@ -110,6 +123,17 @@ test('清场后能立即领取道具时，可推荐正常操作领取伙伴', ()
   state.enemies[2] = [{ kind: 'book', hp: 1 }]
   const result = recommend(state)
   expect(result.action?.kind).toBe('move')
+  expect(simulate(state, result.action!)?.loot).toBe(1)
+})
+
+test('多种操作都能拿到同一个道具时，优先让休息区伙伴上阵', () => {
+  const state = emptyState()
+  state.field[0] = { role: 'li', level: 1 }
+  state.bench[0] = { role: 'qin', level: 1 }
+  state.enemies[0] = [{ kind: 'book', hp: 1 }]
+
+  const result = recommend(state)
+  expect(result.action).toMatchObject({ kind: 'move', from: { zone: 'bench' }, to: { zone: 'field' } })
   expect(simulate(state, result.action!)?.loot).toBe(1)
 })
 

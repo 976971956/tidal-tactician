@@ -61,11 +61,17 @@ export function risk(state: State) {
   return { pressure, exposed, count: zombies.length, bottom: zombies.filter(({ index }) => rowOf(index) >= state.rules.boundary - 1).length, output }
 }
 
-function rank(state: State, loot: number, motion: number) {
+function lineupPriority(action?: Action) {
+  return Number(action?.kind === 'merge' ||
+    (action?.kind === 'move' && action.from.zone === 'bench' && action.to.zone === 'field'))
+}
+
+function rank(state: State, loot: number, motion: number, firstAction?: Action) {
   const { count, exposed, pressure, output } = risk(state)
   return [
     // For clear boards, save turns before comparing score, which increases with every move.
-    Number(count === 0), count === 0 ? -state.turn : 0, -exposed, -pressure, output.filter(Boolean).length,
+    Number(count === 0), count === 0 ? -state.turn : 0, -exposed, -pressure, lineupPriority(firstAction),
+    output.filter(Boolean).length,
     output.reduce((sum, amount) => sum + amount, 0), loot, state.score, -motion,
   ]
 }
@@ -134,7 +140,8 @@ export function recommend(initial: State, depth = 4, width = 44): Recommendation
         action.from.zone === 'field' && action.to.zone === 'field' && colOf(action.from.index) === colOf(action.to.index) ? 3 :
           action.kind === 'merge' ? 2 : 1)
       const loot = node.loot + result.loot - result.lost
-      return { state: result.state, path: [...node.path, action], spells: node.spells + Number(spell), value: rank(result.state, loot, motion), motion, loot }
+      const path = [...node.path, action]
+      return { state: result.state, path, spells: node.spells + Number(spell), value: rank(result.state, loot, motion, path[0]), motion, loot }
     }
     function record(node: Node) {
       const turns = node.state.turn - initial.turn
@@ -181,14 +188,15 @@ export function recommend(initial: State, depth = 4, width = 44): Recommendation
   if (root.value[0]) {
     // With no zombies on the board, recommend a prop-only move only if it
     // immediately adds a partner. Players can otherwise wait for a real spawn.
-    let harvest: { action: Move; loot: number; score: number } | undefined
+    let harvest: { action: Move; loot: number } | undefined
     if (initial.bench.includes(null) && initial.enemies.some(cell => cell.length > 0)) {
       for (const action of legalMoves(initial)) {
         searched++
         const result = simulate(initial, action, false)!
         const loot = result.loot - result.lost
-        if (loot > 0 && (!harvest || loot > harvest.loot || (loot === harvest.loot && result.state.score > harvest.score))) {
-          harvest = { action, loot, score: result.state.score }
+        if (loot > 0 && (!harvest || loot > harvest.loot ||
+          (loot === harvest.loot && lineupPriority(action) > lineupPriority(harvest.action)))) {
+          harvest = { action, loot }
         }
       }
     }
