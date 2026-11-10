@@ -1,11 +1,10 @@
-import { defaultRules, emptyState, ENEMY_ROWS, COLS, FIELD_SIZE, largeAnchorFits, LEVELS, names } from './model'
+import { defaultRules, emptyState, ENEMY_ROWS, COLS, FIELD_SIZE, largeAnchorFits, LEVELS, MAX_RESOURCE_COUNT, names } from './model'
 import type { Enemy, Partner, Rules, State } from './model'
 import { historyOf } from './history'
 import type { History } from './history'
 
 export const LIVE_KEY = 'tidal-tactician/live-v1'
 export const SAVE_KEY = 'tidal-tactician/save-v1'
-const MAX_COUNT = 1_000_000_000
 
 function check(condition: unknown, label: string): asserts condition {
   if (!condition) throw new Error(`${label}格式有误`)
@@ -25,6 +24,12 @@ function readRules(value: unknown): Rules {
     const amount = value[key]
     check(integer(amount, key === 'benchCapacity' ? 0 : 1, max), key)
     result[key] = amount
+  }
+  for (const key of ['maxFireUses', 'maxIceUses'] as const) {
+    const limit = data[key]
+    if (limit === undefined || limit === null) continue
+    check(integer(limit, 0, MAX_RESOURCE_COUNT), key === 'maxFireUses' ? '火焰符使用上限' : '冰冻符使用上限')
+    result[key] = limit
   }
   check(LEVELS.some(level => level === result.maxLevel), '合成等级上限')
   for (const key of ['blockWithPartner', 'allowReturn'] as const) {
@@ -84,8 +89,8 @@ export function validateState(value: unknown): State {
     })
   })
   const { drinks, score, fire, ice, frozen, turn, failed } = value
-  check(integer(drinks, 0, MAX_COUNT) && integer(score, 0, Number.MAX_SAFE_INTEGER) &&
-    integer(fire, 0, MAX_COUNT) && integer(ice, 0, MAX_COUNT) &&
+  check(integer(drinks, 0, MAX_RESOURCE_COUNT) && integer(score, 0, Number.MAX_SAFE_INTEGER) &&
+    integer(fire, 0, MAX_RESOURCE_COUNT) && integer(ice, 0, MAX_RESOURCE_COUNT) &&
     integer(frozen, 0, 12) && integer(turn, 0, Number.MAX_SAFE_INTEGER) && typeof failed === 'boolean', '回合资源')
   return { enemies, field: readPartners(value.field, FIELD_SIZE), bench: readPartners(value.bench, rules.benchCapacity),
     drinks, score, fire, ice, frozen, turn, failed, rules }

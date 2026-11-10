@@ -91,7 +91,12 @@ function spellActions(state: State): Action[] {
 }
 
 export function recommend(initial: State, depth = 4, width = 44): Recommendation {
-  const root: Node = { state: initial, path: [], spells: 0, value: rank(initial, 0, 0), motion: 0, loot: 0 }
+  const available = {
+    ...initial,
+    fire: Math.min(initial.fire, initial.rules.maxFireUses ?? initial.fire),
+    ice: Math.min(initial.ice, initial.rules.maxIceUses ?? initial.ice),
+  }
+  const root: Node = { state: available, path: [], spells: 0, value: rank(available, 0, 0), motion: 0, loot: 0 }
   let searched = 0
   const requestedDepth = Math.max(3, Math.min(7, depth))
   function run(rescue: boolean) {
@@ -191,7 +196,7 @@ export function recommend(initial: State, depth = 4, width = 44): Recommendation
       survived: harvest ? 1 : 0, searched, status: 'clear', pruned: false, normalPruned: false, rescue: false }
   }
   const normal = run(false)
-  const rescue = !normal.goal && !normal.stalled && Boolean(initial.fire || initial.ice) ? run(true) : undefined
+  const rescue = !normal.goal && !normal.stalled && Boolean(available.fire || available.ice) ? run(true) : undefined
   const partialRescue = rescue && rescue.longest.state.turn > normal.longest.state.turn ? rescue.longest : undefined
   const best = normal.goal ?? rescue?.goal ?? partialRescue ?? normal.longest
   const status = best.value[0] ? 'clear' : best.state.turn - initial.turn >= requestedDepth ? 'safe' :

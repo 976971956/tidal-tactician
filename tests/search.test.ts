@@ -45,6 +45,42 @@ test('普通操作无法救场时才推荐符咒', () => {
   expect(result.rescue).toBe(true)
 })
 
+test('火焰符受库存和整条推荐路线的使用上限约束', () => {
+  const state = emptyState()
+  state.bench[0] = { role: 'li', level: 1 }
+  state.ice = 0
+  state.fire = 3
+  add(state, 25, 30)
+  add(state, 27, 30)
+
+  state.rules.maxFireUses = 1
+  expect(recommend(state).status).toBe('impossible')
+  state.rules.maxFireUses = 2
+  expect(recommend(state)).toMatchObject({
+    status: 'clear', path: [{ kind: 'fire', col: 0 }, { kind: 'fire', col: 2 }],
+  })
+  expect(state.fire).toBe(3)
+  state.fire = 1
+  expect(recommend(state).status).toBe('impossible')
+})
+
+test('冰冻符在不同回合的使用次数累计，设为零时跳过', () => {
+  const state = emptyState()
+  state.bench[0] = { role: 'li', level: 1 }
+  state.fire = 0
+  state.ice = 3
+  add(state, 25, 3)
+
+  state.rules.maxIceUses = 0
+  expect(recommend(state)).toMatchObject({ action: null, status: 'impossible' })
+  state.rules.maxIceUses = 1
+  expect(recommend(state)).toMatchObject({ action: { kind: 'ice' }, status: 'limited', survived: 1 })
+  state.rules.maxIceUses = 2
+  const result = recommend(state)
+  expect(result.status).toBe('clear')
+  expect(result.path.filter(action => action.kind === 'ice')).toHaveLength(2)
+})
+
 test('当前安全但后续无解的移动不会压过无符咒清场路线', () => {
   const state = emptyState()
   state.field[0] = { role: 'li', level: 8 }

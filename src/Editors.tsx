@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Icon } from './Art'
-import { colOf, COLS, defaultRules, ENEMY_ROWS, enemyName, isLarge, largeAnchorFits, LEVELS, names, rowOf } from './game/model'
+import { colOf, COLS, defaultRules, ENEMY_ROWS, enemyName, isLarge, largeAnchorFits, LEVELS, MAX_RESOURCE_COUNT, names, rowOf } from './game/model'
 import type { Enemy, Partner, Rules, State } from './game/model'
 import { encodeBoard, parseBoard } from './game/storage'
 
@@ -135,7 +135,7 @@ export function ResourcesEditor({ state, close, save }: { state: State; close: (
   const keys = Object.keys(resourceLabels) as Resource[]
   return <Dialog title="同步回合资源" eyebrow="RESOURCE SYNC" close={close}>
     <form onSubmit={event => { event.preventDefault(); save(draft) }}>
-      <div className="form-grid">{keys.map(key => <Numeric key={key} label={resourceLabels[key]} value={draft[key]} max={key === 'frozen' ? 12 : 1_000_000_000}
+      <div className="form-grid">{keys.map(key => <Numeric key={key} label={resourceLabels[key]} value={draft[key]} max={key === 'frozen' ? 12 : MAX_RESOURCE_COUNT}
         onChange={value => setDraft({ ...draft, [key]: value })}/>)}</div>
       {draft.failed && <label className="check-label"><input type="checkbox" checked={!draft.failed} onChange={() => setDraft({ ...draft, failed: false })}/> 清除失败标记</label>}
       <div className="dialog-actions"><button className="primary" type="submit">保存资源</button></div>
@@ -190,6 +190,16 @@ export function RulesEditor({ state, close, save }: { state: State; close: () =>
       </div>
       <label className="check-label"><input type="checkbox" checked={draft.blockWithPartner}
         onChange={event => set('blockWithPartner', event.target.checked)}/> 允许同列前排伙伴阻挡底线突破</label>
+      <h3>推演符咒上限</h3>
+      <p className="muted small">上限按一条推荐路线累计。留空时按当前库存推演，填 0 时跳过该符。</p>
+      <div className="form-grid">
+        {([['maxFireUses', '火焰符使用上限'], ['maxIceUses', '冰冻符使用上限']] as const).map(([key, label]) =>
+          <label className="input-label" key={key}>{label}
+            <input type="number" inputMode="numeric" min={0} max={MAX_RESOURCE_COUNT} step={1}
+              placeholder="按库存" value={draft[key] ?? ''}
+              onChange={event => set(key, event.currentTarget.value === '' ? null : event.currentTarget.valueAsNumber)}/>
+          </label>)}
+      </div>
       <h3>阵容与合成</h3>
       <div className="form-grid">
         <Numeric label="休息区容量" value={draft.benchCapacity} max={24} onChange={value => set('benchCapacity', value)}/>

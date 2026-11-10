@@ -46,13 +46,25 @@ test('旧存档更新旧版默认规则，保留已有的自定义伤害', () =>
   const state = demoState()
   const old = JSON.parse(exportState(state))
   delete old.state.rules.propMovement
+  delete old.state.rules.maxFireUses
+  delete old.state.rules.maxIceUses
   old.state.rules.attackOrder = 'front'
   old.state.rules.li[2] = { total: 2, shots: 1, shotDamage: 2, retarget: false }
   old.state.rules.li[8] = { total: 6, shots: 3, shotDamage: 2, retarget: true }
   const loaded = importState(JSON.stringify(old))
   expect(loaded.rules).toMatchObject({
     attackOrder: 'qin', propMovement: 'with-enemies',
+    maxFireUses: null, maxIceUses: null,
     li: { 2: { shots: 2, shotDamage: 1, retarget: true }, 8: old.state.rules.li[8] },
   })
   expect(loaded.enemies).toEqual(state.enemies)
+})
+
+test('存档保留两个符咒上限，包括禁止使用的零值', () => {
+  const state = emptyState()
+  state.rules.maxFireUses = 2
+  state.rules.maxIceUses = 0
+  expect(importState(exportState(state)).rules).toMatchObject({ maxFireUses: 2, maxIceUses: 0 })
+  state.rules.maxIceUses = -1
+  expect(() => importState(exportState(state))).toThrow('冰冻符使用上限')
 })

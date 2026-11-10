@@ -1,6 +1,7 @@
 export const COLS = 5
 export const ENEMY_ROWS = 6
 export const FIELD_SIZE = 10
+export const MAX_RESOURCE_COUNT = 1_000_000_000
 export const LEVELS = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024] as const
 
 export type Role = 'li' | 'qin'
@@ -25,6 +26,8 @@ export type Rules = {
   bottleHp: number
   benchCapacity: number
   freezeTurns: number
+  maxFireUses: number | null
+  maxIceUses: number | null
   boundary: number
   blockWithPartner: boolean
   collision: 'stack' | 'hold'
@@ -75,6 +78,7 @@ export function defaultRules(): Rules {
     qin: Object.fromEntries(LEVELS.map(level => [level, level])),
     attackOrder: 'qin', propTarget: 'lowest', propTiming: 'after-attacks', propMovement: 'with-enemies',
     bookHp: 1, bottleHp: 1, benchCapacity: 2, freezeTurns: 1, boundary: 6,
+    maxFireUses: null, maxIceUses: null,
     blockWithPartner: false, collision: 'stack', maxLevel: 512, mergeScope: 'field', allowReturn: false,
   }
 }
