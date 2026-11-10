@@ -22,9 +22,10 @@ test('同样无需符咒时，优先上阵到能立即清场的列', () => {
   expect(simulate(state, result.action!)).toMatchObject({ killed: 1, state: { drinks: state.drinks - 1 } })
 })
 
-test('同样能立即清场时，优先合成而不是移动到其他空列', () => {
+test('合成和上阵都能立即清场时，优先合成', () => {
   const state = emptyState()
   state.field[0] = state.field[1] = { role: 'qin', level: 2 }
+  state.bench[0] = { role: 'li', level: 1 }
   add(state, 25, 1)
 
   const result = recommend(state)
@@ -33,6 +34,22 @@ test('同样能立即清场时，优先合成而不是移动到其他空列', ()
     status: 'clear', survived: 1, rescue: false,
   })
   expect(simulate(state, result.action!)?.state.field[0]?.level).toBe(4)
+})
+
+test('安全的合成目标有多个时，优先打出更多实际伤害的合成', () => {
+  const state = emptyState()
+  state.drinks = 1
+  state.field[0] = state.field[1] = { role: 'qin', level: 2 }
+  add(state, 15, 5)
+  add(state, 1, 10)
+  add(state, 6, 10)
+  add(state, 11, 10)
+
+  const result = recommend(state)
+  expect(result.action).toMatchObject({ kind: 'merge', to: { zone: 'field', index: 1 } })
+  const outcome = simulate(state, result.action!)!
+  expect(outcome.state.failed).toBe(false)
+  expect(outcome.hits.reduce((damage, hit) => damage + hit.damage, 0)).toBe(12)
 })
 
 test('推荐安全操作，避开会让末排僵尸逃逸的走法', () => {

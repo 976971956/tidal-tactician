@@ -52,25 +52,27 @@ export function risk(state: State) {
   }
   let pressure = 0
   let exposed = 0
+  let remainingHp = 0
   for (const { index, enemy } of zombies) {
     const distance = Math.max(0, state.rules.boundary - rowOf(index) - 1) + state.frozen
+    remainingHp += enemy.hp
     pressure += (enemy.hp + 2) / (distance + 1) ** 2
     const damage = enemyColumns(index, enemy).reduce((total, col) => total + output[col], 0)
     if (distance === 0 && enemy.hp > damage) exposed++
   }
-  return { pressure, exposed, count: zombies.length, bottom: zombies.filter(({ index }) => rowOf(index) >= state.rules.boundary - 1).length, output }
+  return { pressure, exposed, remainingHp, count: zombies.length, bottom: zombies.filter(({ index }) => rowOf(index) >= state.rules.boundary - 1).length, output }
 }
 
 function lineupPriority(action?: Action) {
-  return Number(action?.kind === 'merge' ||
-    (action?.kind === 'move' && action.from.zone === 'bench' && action.to.zone === 'field'))
+  if (action?.kind === 'merge') return 2
+  return Number(action?.kind === 'move' && action.from.zone === 'bench' && action.to.zone === 'field')
 }
 
 function rank(state: State, loot: number, motion: number, firstAction?: Action) {
-  const { count, exposed, pressure, output } = risk(state)
+  const { count, exposed, remainingHp, pressure, output } = risk(state)
   return [
     // For clear boards, save turns before comparing score, which increases with every move.
-    Number(count === 0), count === 0 ? -state.turn : 0, -exposed, -pressure, lineupPriority(firstAction),
+    Number(count === 0), count === 0 ? -state.turn : 0, -exposed, -remainingHp, -pressure, lineupPriority(firstAction),
     output.filter(Boolean).length,
     output.reduce((sum, amount) => sum + amount, 0), loot, state.score, -motion,
   ]
