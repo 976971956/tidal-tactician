@@ -49,7 +49,8 @@ function readRules(value: unknown): Rules {
   result.propTiming = option('propTiming', ['immediate', 'after-attacks'])
   if (!legacy) result.propMovement = option('propMovement', ['with-enemies', 'every-turn', 'stationary'])
   result.collision = option('collision', ['stack', 'hold'])
-  result.mergeScope = option('mergeScope', ['all', 'same-zone', 'field'])
+  const mergeScope = option('mergeScope', ['all', 'same-zone', 'to-field', 'field-only', 'field'])
+  result.mergeScope = mergeScope === 'field' ? 'to-field' : mergeScope
   check(object(value.li) && object(value.qin), '角色伤害')
   for (const level of LEVELS) {
     const li = value.li[level]

@@ -18,14 +18,19 @@ test('同角色同等级合成并保留目标位置', () => {
   expect([merged.field[5], merged.field[0]]).toEqual([null, { role: 'li', level: 2 }])
 })
 
-test('微信默认规则只允许从休息区上阵到空格', () => {
+test('微信默认规则允许从休息区上阵或直接合成到伙伴区', () => {
   const state = wechatSample()
   const reserve = { zone: 'bench', index: 1 } as const
   expect(moveBetween(state, reserve, { zone: 'field', index: 2 })?.kind).toBe('move')
-  expect(moveBetween(state, reserve, { zone: 'field', index: 0 })).toBeNull()
+  const merge = moveBetween(state, reserve, { zone: 'field', index: 0 })!
+  expect(merge.kind).toBe('merge')
+  const merged = applyPlacement(state, merge)
+  expect([merged.bench[1], merged.field[0]]).toEqual([null, { role: 'li', level: 2 }])
   expect(moveBetween(state, reserve, { zone: 'field', index: 1 })).toBeNull()
   expect(moveBetween(state, { zone: 'field', index: 0 }, reserve)).toBeNull()
-  expect(legalMoves(state).every(move => move.to.zone === 'field')).toBe(true)
+  const moves = legalMoves(state)
+  expect(moves).toContainEqual(merge)
+  expect(moves.every(move => move.to.zone === 'field')).toBe(true)
 })
 
 test('第十级攻击力 512 时不能继续合成', () => {

@@ -48,6 +48,7 @@ test('旧存档更新旧版默认规则，保留已有的自定义伤害', () =>
   delete old.state.rules.propMovement
   delete old.state.rules.maxFireUses
   delete old.state.rules.maxIceUses
+  old.state.rules.mergeScope = 'field'
   old.state.rules.attackOrder = 'front'
   old.state.rules.li[2] = { total: 2, shots: 1, shotDamage: 2, retarget: false }
   old.state.rules.li[8] = { total: 6, shots: 3, shotDamage: 2, retarget: true }
@@ -55,6 +56,7 @@ test('旧存档更新旧版默认规则，保留已有的自定义伤害', () =>
   expect(loaded.rules).toMatchObject({
     attackOrder: 'qin', propMovement: 'with-enemies',
     maxFireUses: null, maxIceUses: null,
+    mergeScope: 'to-field',
     li: { 2: { shots: 2, shotDamage: 1, retarget: true }, 8: old.state.rules.li[8] },
   })
   expect(loaded.enemies).toEqual(state.enemies)

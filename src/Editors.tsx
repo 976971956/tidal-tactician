@@ -159,7 +159,7 @@ export function RulesEditor({ state, close, save }: { state: State; close: () =>
     save({ ...state, rules: draft, bench: Array.from({ length: draft.benchCapacity }, (_, index) => state.bench[index] ?? null) })
   }
   return <Dialog title="规则校准" eyebrow="RULE CALIBRATION" close={close} wide>
-    <p className="hint"><b>微信游戏规则</b> · 休息区伙伴只可放到上阵区空格。移动、合成和交换在上阵区内进行，合成攻击力翻倍，最高 10 级。所有上阵伙伴攻击后，邪祟再前进。</p>
+    <p className="hint"><b>微信游戏规则</b> · 休息区伙伴可放到伙伴区空格，也可直接与伙伴区内同角色、同攻击力的伙伴合成。合成结果留在伙伴区，攻击力翻倍，最高 10 级。所有上阵伙伴攻击后，邪祟再前进。</p>
     <p className="hint gold-hint"><b>实局校准</b> · 默认秦璃先攻，李追远逐张结算符纸，击杀后剩余符纸继续打后方。密卷和血瓷瓶随邪祟前进。道具是否随冰冻停步可调整。</p>
     <form onSubmit={event => { event.preventDefault(); saveRules() }}>
       <h3>角色伤害</h3>
@@ -204,7 +204,7 @@ export function RulesEditor({ state, close, save }: { state: State; close: () =>
       <div className="form-grid">
         <Numeric label="休息区容量" value={draft.benchCapacity} max={24} onChange={value => set('benchCapacity', value)}/>
         <Select label="合成范围" value={draft.mergeScope} onChange={value => set('mergeScope', value)}
-          options={ [['all', '允许跨区合成'], ['same-zone', '仅同区合成'], ['field', '仅上场伙伴合成']] }/>
+          options={ [['to-field', '可从休息区合成到伙伴区'], ['all', '允许双向跨区合成'], ['same-zone', '仅同区合成'], ['field-only', '仅上场伙伴合成']] }/>
         <Select label="合成上限" value={String(draft.maxLevel)} onChange={value => set('maxLevel', Number(value))}
           options={powerOptions}/>
       </div>

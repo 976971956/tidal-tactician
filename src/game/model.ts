@@ -32,7 +32,7 @@ export type Rules = {
   blockWithPartner: boolean
   collision: 'stack' | 'hold'
   maxLevel: number
-  mergeScope: 'all' | 'same-zone' | 'field'
+  mergeScope: 'all' | 'same-zone' | 'to-field' | 'field-only'
   allowReturn: boolean
 }
 
@@ -79,7 +79,7 @@ export function defaultRules(): Rules {
     attackOrder: 'qin', propTarget: 'lowest', propTiming: 'after-attacks', propMovement: 'with-enemies',
     bookHp: 1, bottleHp: 1, benchCapacity: 2, freezeTurns: 1, boundary: 6,
     maxFireUses: null, maxIceUses: null,
-    blockWithPartner: false, collision: 'stack', maxLevel: 512, mergeScope: 'field', allowReturn: false,
+    blockWithPartner: false, collision: 'stack', maxLevel: 512, mergeScope: 'to-field', allowReturn: false,
   }
 }
 
@@ -142,7 +142,7 @@ export function moveBetween(state: State, from: Slot, to: Slot): Move | null {
   const matching = target?.role === source.role && target.level === source.level
   const scope = state.rules.mergeScope
   const canMerge = scope === 'all' || (scope === 'same-zone' && from.zone === to.zone) ||
-    (scope === 'field' && from.zone === 'field' && to.zone === 'field')
+    (to.zone === 'field' && (scope === 'to-field' || (scope === 'field-only' && from.zone === 'field')))
   if (matching && canMerge && source.level < state.rules.maxLevel) return { kind: 'merge', from, to }
   if (from.zone === 'bench' && to.zone === 'bench') return null
   if (from.zone !== to.zone && !state.rules.allowReturn && (from.zone === 'field' || target)) return null

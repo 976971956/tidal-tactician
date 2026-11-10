@@ -76,6 +76,19 @@ test('合成和上阵都能立即清场时，优先合成', () => {
   expect(simulate(state, result.action!)?.state.field[0]?.level).toBe(4)
 })
 
+test('两格都占用时，可以从休息区直接合成并用当回合伤害守住防线', () => {
+  const state = emptyState()
+  state.field[2] = state.field[7] = state.bench[0] = { role: 'li', level: 1 }
+  add(state, 27, 3)
+
+  const result = recommend(state)
+  expect(result).toMatchObject({
+    status: 'clear', survived: 1, rescue: false,
+    action: { kind: 'merge', from: { zone: 'bench', index: 0 }, to: { zone: 'field', index: 2 } },
+  })
+  expect(simulate(state, result.action!)).toMatchObject({ killed: 1, state: { drinks: state.drinks - 1, failed: false } })
+})
+
 test('能安全清场时，先救即将越过底线的血瓷瓶', () => {
   const state = emptyState()
   state.enemies = parseBoard([
